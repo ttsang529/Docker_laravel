@@ -1,0 +1,16 @@
+FROM php:5.6-fpm
+RUN docker-php-ext-install -j$(nproc) pdo_mysql
+RUN docker-php-ext-install -j$(nproc) mbstring
+RUN docker-php-ext-install -j$(nproc) tokenizer
+RUN apt-get update && apt-get -y install \
+    vim \
+    git \
+    php5-mongo \
+    zlib1g-dev
+RUN curl -sS https://getcomposer.org/installer | php
+RUN mv composer.phar /usr/local/bin/composer
+RUN mkdir -p /var/www
+VOLUME /var/www
+WORKDIR /var/www
+RUN composer global require "laravel/installer"
+RUN export PATH="$PATH:$HOME/.composer/vendor/bin"

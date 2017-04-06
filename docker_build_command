@@ -1,0 +1,68 @@
+#subscribe run on /home/ubiqconn
+
+#install mysql
+docker run \
+--name percona_mysqldb \
+--restart=always \
+-p 3306:3306 \
+-e MYSQL_ROOT_PASSWORD=ubiqconn \
+-e MYSQL_DATABASE=OTA \
+-v ${PWD}/mysql/db:/var/lib/mysql \
+-v /etc/localtime:/etc/localtime:ro \
+-d percona:5.7
+
+
+
+#install redis
+docker run \
+--restart=always \
+-d --name redis \
+-p 6379:6379 \
+-v /etc/localtime:/etc/localtime:ro \
+-v ${PWD}/redis/data:/data \
+redis:3.2 \
+redis-server --appendonly yes
+
+#install nginx
+docker run \
+--restart=always \
+-d --name dev_nginx \
+-p 80:80 \
+-p 3113:3113 \
+--link laravel:phpfpm \
+-v ${PWD}/works/www:/var/www \
+-v /etc/localtime:/etc/localtime:ro \
+-v ${PWD}/nginx/log:/var/log/nginx \
+-v ${PWD}/nginx/conf.d:/etc/nginx/conf.d:ro \
+ubiqconn/nginx1.11.10_vim
+
+#install kdihalas
+docker run --restart=always -d --name dev_queue kdihalas/beanstalkd:latest
+
+
+#install mqtt
+#attention ,mqtt log should not exist file and cause docker initial failed
+#attention,
+docker run -ti -p 1883:1883 -p 8883:8883 -p 9001:9001 -v ${PWD}/mqtt/config:/mqtt/config:ro -v ${PWD}/mqtt/log:/mqtt/log -v ${PWD}/mqtt/data/:/mqtt/data/ --name mqtt toke/mosquitto
+
+
+#install laravel
+docker run --restart=always -d --name laravel --link percona_mysqldb:mysqldb -e MYSQLDB_HOST=percona_mysqldb --link mongodb:mongodb -e MONGODB_HOST=mongodb --link redis:redis -e REDIS_HOST=redis --link dev_queue:queue -e BEANSTALKD_HOST=dev_queue -v ${PWD}/works/www:/var/www -v /etc/localtime:/etc/localtime:ro -w /var/www laravel_php:7-fpm
+
+
+docker run \
+--restart=always \
+-d --name laravel \
+--link percona_mysqldb:mysqldb \
+-e MYSQLDB_HOST=percona_mysqldb \
+--link mongodb:mongodb \
+-e MONGODB_HOST=mongodb \
+--link redis:redis \
+-e REDIS_HOST=redis \
+--link dev_queue:queue \
+-e BEANSTALKD_HOST=dev_queue \
+-v ${PWD}/works/www:/var/www \
+-v /etc/localtime:/etc/localtime:ro \
+-w /var/www \
+laravel_php:7-fpm
+
